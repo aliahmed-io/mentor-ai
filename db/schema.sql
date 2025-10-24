@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS creations (
   type TEXT CHECK (type IN ('ppt','docx')),
   title TEXT,
   prompt TEXT,
+  document_id TEXT REFERENCES documents(id),
   file_url TEXT,
   status TEXT DEFAULT 'ready',
   created_at TIMESTAMP DEFAULT NOW()

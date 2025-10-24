@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, HeartOff, Search, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Heart, HeartOff, Search, Plus, Trash2, Pencil } from "lucide-react";
 
 type Prayer = {
   id: string;
@@ -19,6 +20,8 @@ export default function PrayersPage() {
   const [prayers, setPrayers] = useState<Prayer[]>([]);
   const [q, setQ] = useState("");
   const [form, setForm] = useState({ title: "", text: "", tags: "", is_favorite: false });
+  const [editing, setEditing] = useState<string | null>(null);
+  const [edit, setEdit] = useState({ title: "", text: "", tags: "", is_favorite: false });
 
   useEffect(() => {
     (async () => {
@@ -44,6 +47,13 @@ export default function PrayersPage() {
     setForm({ title: "", text: "", tags: "", is_favorite: false });
   };
 
+  const saveEdit = async (id: string) => {
+    const body = { ...edit, tags: edit.tags.split(",").map((t) => t.trim()).filter(Boolean), id } as any;
+    await fetch("/api/prayers", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    setPrayers(prayers.map((x) => (x.id === id ? { ...x, title: edit.title, text: edit.text, tags: body.tags, is_favorite: edit.is_favorite } : x)));
+    setEditing(null);
+  };
+
   const toggleFav = async (id: string, isFav: boolean) => {
     const p = prayers.find((x) => x.id === id);
     if (!p) return;
@@ -60,6 +70,19 @@ export default function PrayersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl md:text-2xl font-semibold">Prayers</h2>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={async () => {
+            const samples = [
+              { title: "Morning Prayer", text: "Start my day with gratitude and clarity.", tags: ["morning","gratitude"], is_favorite: true },
+              { title: "Focus Prayer", text: "Guide me to concentrate and learn effectively.", tags: ["study","focus"], is_favorite: false },
+            ];
+            for (const s of samples) {
+              const res = await fetch("/api/prayers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(s) });
+              const json = await res.json().catch(() => ({}));
+              setPrayers((p) => [{ id: json.id || crypto.randomUUID(), created_at: new Date().toISOString(), language: null, category: null, ...s }, ...p]);
+            }
+          }}>Add Samples</Button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
@@ -72,7 +95,7 @@ export default function PrayersPage() {
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={form.is_favorite} onChange={(e) => setForm((s) => ({ ...s, is_favorite: e.target.checked }))} /> Favorite
             </label>
-            <button onClick={addPrayer} className="inline-flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-md text-sm"><Plus className="h-4 w-4" /> Save</button>
+            <Button onClick={addPrayer} className="inline-flex items-center gap-2 text-sm"><Plus className="h-4 w-4" /> Save</Button>
           </CardContent>
         </Card>
 
@@ -86,21 +109,37 @@ export default function PrayersPage() {
               <Card key={p.id}>
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium">{p.title}</h4>
+                    {editing === p.id ? (
+                      <Input value={edit.title} onChange={(e) => setEdit((s) => ({ ...s, title: e.target.value }))} />
+                    ) : (
+                      <h4 className="font-medium">{p.title}</h4>
+                    )}
                     <div className="flex items-center gap-2">
-                      <button onClick={() => toggleFav(p.id, p.is_favorite)} className="text-red-600">
+                      <button aria-label={p.is_favorite ? "Remove from favorites" : "Add to favorites"} onClick={() => toggleFav(p.id, p.is_favorite)} className="text-red-600">
                         {p.is_favorite ? <Heart className="h-4 w-4 fill-red-600" /> : <HeartOff className="h-4 w-4" />}
                       </button>
-                      <button onClick={() => remove(p.id)} className="text-gray-500 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                      {editing === p.id ? (
+                        <Button size="sm" onClick={() => saveEdit(p.id)}>Save</Button>
+                      ) : (
+                        <button aria-label="Edit prayer" onClick={() => { setEditing(p.id); setEdit({ title: p.title, text: p.text, tags: p.tags.join(", "), is_favorite: p.is_favorite }); }} className="text-gray-600 hover:text-gray-800"><Pencil className="h-4 w-4" /></button>
+                      )}
+                      <button aria-label="Delete prayer" onClick={() => remove(p.id)} className="text-gray-500 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.text}</p>
+                  {editing === p.id ? (
+                    <textarea rows={4} aria-label="Prayer text" className="w-full border rounded-md p-2 text-sm" value={edit.text} onChange={(e) => setEdit((s) => ({ ...s, text: e.target.value }))} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.text}</p>
+                  )}
                   {p.tags?.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      {p.tags.map((t) => (
+                      {(editing === p.id ? edit.tags.split(",").map((t) => t.trim()).filter(Boolean) : p.tags).map((t) => (
                         <span key={t} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">#{t}</span>
                       ))}
                     </div>
+                  )}
+                  {editing === p.id && (
+                    <Input placeholder="Tags (comma separated)" value={edit.tags} onChange={(e) => setEdit((s) => ({ ...s, tags: e.target.value }))} />
                   )}
                 </CardContent>
               </Card>

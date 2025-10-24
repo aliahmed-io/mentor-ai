@@ -26,8 +26,8 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-64 shrink-0 border-r bg-white/80 backdrop-blur-sm">
       <div className="h-14 flex items-center px-4 border-b">
-        <Link href="/dashboard" className="font-semibold text-lg">
-          Mentor <span className="text-blue-600">AI</span>
+        <Link href="/dashboard" className="inline-flex items-center gap-2">
+          <img src="/logo.svg" alt="Mentor AI" className="h-6 w-auto" />
         </Link>
       </div>
       <nav className="p-2 space-y-1">

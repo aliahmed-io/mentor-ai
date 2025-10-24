@@ -4,6 +4,8 @@ import { query } from "@/lib/db";
 import { SUMMARY_SHORT_PROMPT, SUMMARY_LONG_PROMPT, MCQ_GENERATION_PROMPT, SHORT_ANSWER_PROMPT, FLASHCARDS_PROMPT } from "@/lib/prompts";
 import { completeJson, completeText } from "@/lib/openai";
 import { retrieveSimilarChunks } from "@/lib/vector";
+import PptxGenJS from "pptxgenjs";
+import { uploadToStorage } from "@/lib/storage";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await requireAuth();
@@ -21,6 +23,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   let summaryShort: string | undefined;
   let summaryLong: string | undefined;
   let questions: any | undefined;
+  let pptUrl: string | undefined;
+  let docUrl: string | undefined;
 
   if (regenerate.includes("summary")) {
     summaryShort = await completeText("You are a concise study assistant.", SUMMARY_SHORT_PROMPT.replace("[DOCUMENT_CHUNK]", fullText.slice(0, 8000)));
@@ -91,7 +95,69 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
-  return NextResponse.json({ summaryShort, summaryLong, questions });
+  // Optionally create PPT slides
+  if (features?.ppt) {
+    try {
+      const { rows: drows } = await query<{ title: string | null }>(`SELECT title FROM documents WHERE id=$1`, [id]);
+      const baseTitle = drows[0]?.title || "Mentor Slides";
+      const outlineJson = (await completeJson(
+        "You are an expert instructional designer. Return JSON only.",
+        `Create a slide outline from the document text. JSON schema: { "title": string, "sections": [{ "heading": string, "bullets": string[] }] }. Title should be short. TEXT:\n${fullText}`
+      )) as any;
+      const title = String(outlineJson?.title || baseTitle);
+      const sections: { heading: string; bullets: string[] }[] = Array.isArray(outlineJson?.sections) ? outlineJson.sections : [];
+      const pptx = new PptxGenJS();
+      pptx.title = title;
+      sections.forEach((sec) => {
+        const slide = pptx.addSlide();
+        slide.addText(sec.heading || "Slide", { x: 0.5, y: 0.4, fontSize: 24, bold: true, color: "203764" });
+        (sec.bullets || []).forEach((b: string, i: number) => slide.addText(`• ${b}`, { x: 0.7, y: 1.2 + i * 0.5, fontSize: 16 }));
+      });
+      const arrayBuffer = await (pptx as any).write("arraybuffer");
+      const fileName = `creations/${userId}/${id}-${Date.now()}.pptx`;
+      const up = await uploadToStorage(Buffer.from(arrayBuffer as ArrayBuffer), fileName, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+      pptUrl = up.url;
+      const cid = crypto.randomUUID();
+      await query(`INSERT INTO creations (id, user_id, type, title, prompt, document_id, file_url) VALUES ($1,$2,'ppt',$3,$4,$5,$6)`, [cid, userId, title, JSON.stringify(sections), id, pptUrl]);
+    } catch {}
+  }
+
+  // Optionally create DOCX long study doc (detailed summarization)
+  if (features?.docx) {
+    try {
+      const { rows: drows } = await query<{ title: string | null }>(`SELECT title FROM documents WHERE id=$1`, [id]);
+      const baseTitle = drows[0]?.title || "Mentor Study Doc";
+      const sectionsJson = (await completeJson(
+        "You are a skilled academic writer. Return JSON only.",
+        `Produce an essay outline from the document with sections. JSON: { "title": string, "sections": [{ "heading": string, "content": string }] }. Ensure coherent flow. TEXT:\n${fullText}`
+      )) as any;
+      const title = String(sectionsJson?.title || baseTitle);
+      const sections = Array.isArray(sectionsJson?.sections) ? sectionsJson.sections : [];
+      // Build DOCX buffer via dynamic import to avoid ESM issues in some environments
+      const { Document, Packer, Paragraph, HeadingLevel } = await import("docx");
+      const doc = new Document({
+        sections: [
+          {
+            children: [
+              new Paragraph({ text: title, heading: HeadingLevel.TITLE }),
+              ...sections.flatMap((s: any) => [
+                new Paragraph({ text: s.heading || "Section", heading: HeadingLevel.HEADING_2 }),
+                ...String(s.content || "").split("\n\n").map((p: string) => new Paragraph(p)),
+              ]),
+            ],
+          },
+        ],
+      });
+      const buffer = await Packer.toBuffer(doc);
+      const fileName = `creations/${userId}/${id}-${Date.now()}.docx`;
+      const up = await uploadToStorage(buffer, fileName, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      docUrl = up.url;
+      const cid = crypto.randomUUID();
+      await query(`INSERT INTO creations (id, user_id, type, title, prompt, document_id, file_url) VALUES ($1,$2,'docx',$3,$4,$5,$6)`, [cid, userId, title, JSON.stringify(sections), id, docUrl]);
+    } catch {}
+  }
+
+  return NextResponse.json({ summaryShort, summaryLong, questions, pptUrl, docUrl });
 }
 
 
