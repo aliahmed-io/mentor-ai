@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Send, Bot, User, AlertCircle, Loader2, BookOpen } from "lucide-react";
+import { Send, User, AlertCircle, Loader2, BookOpen } from "lucide-react";
+import Image from "next/image";
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
@@ -13,10 +14,19 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [sources, setSources] = useState<{ id: string; position: number; preview: string }[]>([]);
+  const [documentId, setDocumentId] = useState<string | null>(null);
 
   useEffect(() => {
     boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight });
   }, [messages]);
+
+  // Load last uploaded document context if set by dashboard
+  useEffect(() => {
+    try {
+      const last = localStorage.getItem('chat_doc_id');
+      if (last) setDocumentId(last);
+    } catch {}
+  }, []);
 
   const ask = async () => {
     const question = q.trim();
@@ -28,7 +38,7 @@ export default function ChatPage() {
     setQ("");
     
     try {
-      const res = await fetch("/api/chat", { method: "POST", body: JSON.stringify({ question }) });
+      const res = await fetch("/api/chat", { method: "POST", body: JSON.stringify({ question, documentId }) });
       
       if (!res.ok) {
         throw new Error('Failed to get response');
@@ -86,11 +96,21 @@ export default function ChatPage() {
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-        <div className="flex items-center gap-2">
-          <Bot className="h-6 w-6 text-blue-600" />
-          <h2 className="text-xl md:text-2xl font-semibold">AI Chat</h2>
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded bg-neutral-900 flex items-center justify-center">
+            <Image src="/white-short-logo.svg" alt="Mentor" width={16} height={16} />
+          </div>
+          <h2 className="text-xl md:text-2xl font-semibold">Tutor</h2>
         </div>
-        <Badge variant="secondary" className="w-fit">Ask questions about your documents</Badge>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="secondary" className="w-fit">Ask questions about your documents</Badge>
+          {documentId && (
+            <span className="inline-flex items-center gap-2 text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded px-2 py-1">
+              Using last upload context
+              <button className="underline" onClick={() => { setDocumentId(null); try { localStorage.removeItem('chat_doc_id'); } catch {} }}>clear</button>
+            </span>
+          )}
+        </div>
       </div>
       
       <Card className="flex flex-col h-[60vh] md:h-[70vh] shadow-lg border-0">
@@ -98,8 +118,10 @@ export default function ChatPage() {
           <div ref={boxRef} className="flex-1 overflow-auto p-4 md:p-6 space-y-4" aria-live="polite">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <Bot className="h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Start a conversation</h3>
+                <div className="h-12 w-12 rounded bg-neutral-900 flex items-center justify-center mb-4">
+                  <Image src="/white-short-logo.svg" alt="Mentor" width={20} height={20} />
+                </div>
+                <h3 className="text-lg font-medium text-white mb-2">Start a conversation</h3>
                 <p className="text-muted-foreground max-w-md">
                   Ask questions about your uploaded documents. I can help you understand the content, 
                   generate summaries, and answer specific questions.
@@ -110,14 +132,16 @@ export default function ChatPage() {
                 <div key={i} className={`flex gap-2 md:gap-3 ${m.role === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}>
                   <div className={`flex gap-2 md:gap-3 max-w-[85%] sm:max-w-[80%] ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
                     <div className={`flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center ${
-                      m.role === "user" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"
+                      m.role === "user" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600"
                     }`}>
-                      {m.role === "user" ? <User className="h-3 w-3 md:h-4 md:w-4" /> : <Bot className="h-3 w-3 md:h-4 md:w-4" />}
+                      {m.role === "user" ? <User className="h-3 w-3 md:h-4 md:w-4" /> : (
+                        <Image src="/white-short-logo.svg" alt="Mentor" width={14} height={14} className="opacity-90" />
+                      )}
                     </div>
                     <div className={`rounded-xl px-3 py-2 md:px-4 md:py-2 shadow-sm ${
                       m.role === "user" 
-                        ? "bg-blue-600 text-white" 
-                        : "bg-gray-100 text-gray-900"
+                        ? "bg-neutral-900 text-white" 
+                        : "bg-neutral-100 text-neutral-900"
                     }`}>
                       <div className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{m.content}</div>
                       {m.role === "assistant" && isLoading && i === messages.length - 1 && (
@@ -129,8 +153,8 @@ export default function ChatPage() {
                       {m.role === "assistant" && i === messages.length - 1 && sources.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
                           {sources.map((s, idx) => (
-                            <a key={s.id} href={`/document/${''}#pos-${s.position}`} className="inline-flex items-center gap-1 text-xs bg-white rounded px-2 py-1 border hover:bg-blue-50" title={s.preview}>
-                              <BookOpen className="h-3 w-3 text-blue-600" /> Source {idx+1}
+                            <a key={s.id} href={`/document/${''}#pos-${s.position}`} className="inline-flex items-center gap-1 text-xs bg-white rounded px-2 py-1 border hover:bg-neutral-50 dark:hover:bg-neutral-800" title={s.preview}>
+                              <BookOpen className="h-3 w-3 text-neutral-700" /> Source {idx+1}
                             </a>
                           ))}
                         </div>
@@ -149,7 +173,7 @@ export default function ChatPage() {
             </div>
           )}
           
-          <div className="p-4 md:p-6 border-t bg-gray-50/50">
+          <div className="p-4 md:p-6 border-t bg-neutral-50/50 dark:bg-neutral-900/50">
             <div className="flex gap-2 md:gap-3">
               <Input 
                 value={q} 

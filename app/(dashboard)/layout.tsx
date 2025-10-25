@@ -12,10 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen grid grid-rows-[auto_1fr] md:grid-rows-[1fr] md:grid-cols-[16rem_1fr]">
       <Sidebar />
       <div className="min-h-screen flex flex-col">
-        <div className="md:hidden p-2 border-b flex items-center justify-between bg-white/80 backdrop-blur-sm">
-          <div className="font-semibold text-lg">Mentor <span className="text-blue-600">AI</span></div>
-          <MobileNav />
-        </div>
+        <MobileNav />
         <main className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">{children}</main>
         <NotesWidget />
         <SelectionToolbar />

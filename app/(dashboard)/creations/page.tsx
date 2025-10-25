@@ -36,9 +36,9 @@ export default function CreationsPage() {
       </div>
       <div className="flex items-center gap-2">
         <div className="inline-flex items-center gap-1 text-sm">
-          <button className={`px-2 py-1 rounded border ${filter==='all'?'bg-blue-50 border-blue-300':'hover:bg-gray-50'}`} onClick={() => setFilter('all')}>All</button>
-          <button className={`px-2 py-1 rounded border ${filter==='ppt'?'bg-blue-50 border-blue-300':'hover:bg-gray-50'}`} onClick={() => setFilter('ppt')}>PPT</button>
-          <button className={`px-2 py-1 rounded border ${filter==='docx'?'bg-blue-50 border-blue-300':'hover:bg-gray-50'}`} onClick={() => setFilter('docx')}>DOC</button>
+          <button className={`px-2 py-1 rounded border ${filter==='all'?'bg-blue-50 border-blue-100 text-black':'hover:bg-gray-50 hover:text-black'}`} onClick={() => setFilter('all')}>All</button>
+          <button className={`px-2 py-1 rounded border ${filter==='ppt'?'bg-blue-50 border-blue-100 text-black':'hover:bg-gray-50 hover:text-black'}`} onClick={() => setFilter('ppt')}>PPT</button>
+          <button className={`px-2 py-1 rounded border ${filter==='docx'?'bg-blue-50 border-blue-100 text-black':'hover:bg-gray-50 hover:text-black'}`} onClick={() => setFilter('docx')}>DOC</button>
         </div>
         <input className="border rounded px-2 py-1 text-sm" placeholder="Search titles…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>

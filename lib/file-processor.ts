@@ -20,6 +20,9 @@ export async function processFile(buffer: Buffer, fileType: string, filename: st
     case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
     case "application/msword":
       return await processDocx(buffer);
+    case "application/vnd.ms-powerpoint":
+    case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+      return await processPptx(buffer, filename);
     
     case "image/jpeg":
     case "image/png":
@@ -68,6 +71,11 @@ async function processImage(buffer: Buffer, filename: string): Promise<Processed
     const fallback = `[Image file: ${filename}]\nNo OCR text extracted.`;
     return { text: fallback, fileType: "image" };
   }
+}
+
+async function processPptx(_buffer: Buffer, filename: string): Promise<ProcessedFile> {
+  const text = `[Presentation file: ${filename}]\nText extraction for PPT/PPTX is limited in-app. You can still generate a summary or study doc to convert slides into text.`;
+  return { text, fileType: "pptx" };
 }
 
 function cleanText(input: string): string {

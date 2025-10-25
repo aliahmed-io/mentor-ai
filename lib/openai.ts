@@ -38,12 +38,16 @@ export async function completeJson(system: string, user: string, opts?: { model?
     } catch {}
   }
   if (GEMINI_API_KEY) {
-    const out = await geminiGenerate([
-      { text: `SYSTEM:\n${system}\n` },
-      { text: `USER:\n${user}\n` },
-    ], { mime: "application/json", temperature: 0.2, model: preferred });
-    const text = out?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
-    try { return JSON.parse(text); } catch { return {}; }
+    try {
+      const out = await geminiGenerate([
+        { text: `SYSTEM:\n${system}\n` },
+        { text: `USER:\n${user}\n` },
+      ], { mime: "application/json", temperature: 0.2, model: preferred });
+      const text = out?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+      try { return JSON.parse(text); } catch { return {}; }
+    } catch {
+      // fall through to OpenAI
+    }
   }
   // Fallback to OpenAI
   const res = await openai.chat.completions.create({
@@ -65,11 +69,15 @@ export async function completeText(system: string, user: string, opts?: { model?
     } catch {}
   }
   if (GEMINI_API_KEY) {
-    const out = await geminiGenerate([
-      { text: `SYSTEM:\n${system}\n` },
-      { text: `USER:\n${user}\n` },
-    ], { temperature: 0.2, model: preferred });
-    return out?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    try {
+      const out = await geminiGenerate([
+        { text: `SYSTEM:\n${system}\n` },
+        { text: `USER:\n${user}\n` },
+      ], { temperature: 0.2, model: preferred });
+      return out?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    } catch {
+      // fall through to OpenAI
+    }
   }
   const res = await openai.chat.completions.create({
     model: "gpt-4o-mini",

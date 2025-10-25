@@ -7,7 +7,7 @@ export async function uploadAndGenerate(formData: FormData) {
   const fd = new FormData();
   fd.append('file', file);
 
-  const base = process.env.NEXT_PUBLIC_APP_URL || '';
+  const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
   const res = await fetch(`${base}/api/upload`, { method: 'POST', body: fd });
   const json = await res.json().catch(() => null as any);

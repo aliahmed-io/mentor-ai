@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Clock, CheckCircle, AlertCircle, FileText, Calendar, Search, FileUp, MessageCircle, GraduationCap, FilePlus2, Download } from "lucide-react";
 import Link from "next/link";
 import { uploadAndGenerate } from "./actions";
+import { UploadButton } from "@uploadthing/react";
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
 
 async function getDocs() {
   const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ""}/api/documents`, {
@@ -111,7 +113,7 @@ export default function DashboardPage() {
       <Card className="border bg-white">
         <CardContent className="p-5 md:p-6">
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {[
                 { key: 'quiz', label: 'Create Quiz', icon: GraduationCap },
                 { key: 'ppt', label: 'Create PPT Slides', icon: FilePlus2 },
@@ -134,28 +136,46 @@ export default function DashboardPage() {
             </div>
             <p className="text-xs text-muted-foreground">Summary will always be generated.</p>
 
-            <form action={uploadAndGenerate} className="flex flex-col gap-2">
-              <input type="file" name="file" className="block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-primary file:text-primary-foreground file:font-medium" />
-              <input type="hidden" name="feature_summary" value="true" />
-              <input type="hidden" name="feature_quiz" value={String(features.quiz)} />
-              <input type="hidden" name="feature_ppt" value={String(features.ppt)} />
-              <input type="hidden" name="feature_docx" value={String(features.docx)} />
-              <div className="flex items-center gap-2">
-                <Button type="submit" className="gap-2" onClick={onSubmitClicked}>
-                  <FileUp className="h-4 w-4" /> Upload & Run
-                </Button>
-                <p className="text-xs text-muted-foreground">PDF, DOCX, TXT, images are supported</p>
-              </div>
-            </form>
+            <div className="flex flex-col gap-2">
+              <UploadButton<OurFileRouter, "documentUploader">
+                endpoint="documentUploader"
+                onUploadBegin={() => {
+                  onSubmitClicked();
+                }}
+                onClientUploadComplete={async (res) => {
+                  const docId = (res?.[0] as any)?.serverResponse?.documentId;
+                  if (docId) {
+                    try { localStorage.setItem('chat_doc_id', docId); } catch {}
+                    try {
+                      await fetch(`/api/document/${docId}/generate`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ regenerate: ["summary", "questions"], features }),
+                      });
+                    } catch {}
+                    await refreshCreations();
+                  }
+                }}
+                onUploadError={() => {
+                  setToast({ id: "upload_error", title: "Upload failed", url: "" });
+                }}
+                appearance={{
+                  button: "ut-ready:bg-neutral-900 ut-ready:text-white ut-uploading:bg-neutral-700 ut-uploading:text-white",
+                  container: "justify-start",
+                  allowedContent: "text-xs text-muted-foreground",
+                }}
+              />
+              <p className="text-xs text-muted-foreground">PDF, DOCX, PPTX, TXT, and images are supported (max 8MB).</p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <h3 className="text-base font-medium">Recent documents</h3>
           {!loading && (
-            <div className="relative w-full max-w-xs">
+            <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search..."
@@ -207,7 +227,7 @@ export default function DashboardPage() {
                           <div className="text-xs font-medium text-muted-foreground">Creations</div>
                           <div className="flex flex-wrap gap-2">
                             {related.map((c) => (
-                              <a key={c.id} href={c.file_url} target="_blank" className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded border hover:bg-gray-50">
+                              <a key={c.id} href={c.file_url} target="_blank" className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded border hover:bg-neutral-50 dark:hover:bg-neutral-800">
                                 <Badge className="text-[10px]" variant="secondary">{c.type.toUpperCase()}</Badge>
                                 <span className="truncate max-w-48">{c.title || (c.type === 'ppt' ? 'Slides' : 'Study Doc')}</span>
                               </a>
@@ -262,9 +282,9 @@ export default function DashboardPage() {
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-4 right-4 z-50">
-          <div className="rounded-md border bg-white shadow-lg p-3 min-w-[240px]">
+          <div className="rounded-md border bg-white dark:bg-neutral-900 shadow-lg p-3 min-w-[240px]">
             <div className="text-sm font-medium">Created: {toast.title}</div>
-            <a href={toast.url} target="_blank" className="text-xs text-blue-700 hover:underline">Download</a>
+            <a href={toast.url} target="_blank" className="text-xs text-neutral-700 dark:text-neutral-300 hover:underline">Download</a>
             <div className="mt-2 flex justify-end">
               <button className="text-xs text-gray-600 hover:underline" onClick={() => setToast(null)}>Dismiss</button>
             </div>

@@ -5,7 +5,7 @@ import { query } from "@/lib/db";
 // Clerk Webhook: create DB user on user.created
 export async function POST(req: Request) {
   const payload = await req.text();
-  const hdrs = headers();
+  const hdrs = await (headers() as any);
   const svix_id = hdrs.get("svix-id");
   const svix_timestamp = hdrs.get("svix-timestamp");
   const svix_signature = hdrs.get("svix-signature");
