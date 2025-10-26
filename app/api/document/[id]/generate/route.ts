@@ -7,6 +7,7 @@ import { retrieveSimilarChunks } from "@/lib/vector";
 import PptxGenJS from "pptxgenjs";
 import { createPptTheme, addTitleSlide, addSectionDivider, addBulletsSlide } from "@/lib/ppt-theme";
 import { uploadToStorage } from "@/lib/storage";
+import { processDocument } from "@/lib/processing";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await requireAuth();
@@ -15,10 +16,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const regenerate: string[] = body.regenerate ?? ["summary", "questions"];
   const features = body.features ?? {};
 
-  const { rows: chunkRows } = await query<{ text: string }>(
-    `SELECT text FROM chunks WHERE document_id=$1 ORDER BY position ASC`,
-    [id]
-  );
+  // Ensure document is processed (chunks exist). If none, run processing first.
+  try {
+    const { rows: drows } = await query<{ file_path: string | null; filename: string; status: string }>(
+      `SELECT file_path, filename, status FROM documents WHERE id=$1`,
+      [id]
+    );
+    const doc = drows[0];
+    const { rows: cntRows } = await query<{ count: number }>(
+      `SELECT COUNT(*)::int as count FROM chunks WHERE document_id=$1`,
+      [id]
+    );
+    const hasChunks = (cntRows[0]?.count || 0) > 0;
+    if (!hasChunks && doc?.file_path) {
+      await processDocument(id, String(doc.file_path), "", doc.filename || "document");
+    }
+  } catch {}
+
+  const { rows: chunkRows } = await query<{ text: string }>(`SELECT text FROM chunks WHERE document_id=$1 ORDER BY position ASC`, [id]);
   const fullText = chunkRows.map((r) => r.text).join("\n\n").slice(0, 120_000);
 
   let summaryShort: string | undefined;

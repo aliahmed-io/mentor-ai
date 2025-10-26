@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/**
+ * Enums
+ */
+enum QuestionType {
+  mcq
+  short
+  flashcard
+}
+
+enum CreationType {
+  ppt
+  docx
+}
+
+enum Role {
+  user
+  assistant
+}
+
+/**
+ * Models
+ */
+model User {
+  id               String   @id
+  clerkId          String   @unique @map("clerk_id")
+  email            String
+  name             String?
+  subscriptionTier String?  @default("free") @map("subscription_tier")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // relations
+  documents        Document[]        @relation("UserDocuments")
+  notes            Note?
+  prayers          Prayer[]
+  quizzes          Quiz[]
+  quizAttempts     QuizAttempt[]
+  creations        Creation[]
+  pomodoroSessions PomodoroSession[]
+  chatMessages     ChatMessage[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Document {
+  id           String   @id
+  userId       String?  @map("user_id")
+  title        String
+  filename     String
+  filePath     String?  @map("file_path")
+  sizeBytes    Int?     @map("size_bytes")
+  status       String   @default("uploaded")
+  summaryShort String?  @map("summary_short")
+  summaryLong  String?  @map("summary_long")
+  questions    Json? // JSONB
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+  processingStartedAt  DateTime? @map("processing_started_at")
+  processingCompletedAt DateTime? @map("processing_completed_at")
+  processingAttempts   Int       @default(0) @map("processing_attempts")
+  lastError            String?   @map("last_error")
+
+  // relations
+  user         User?         @relation("UserDocuments", fields: [userId], references: [id], onDelete: Cascade)
+  chunks       Chunk[]
+  quizzes      Quiz[]
+  creations    Creation[]
+  chatMessages ChatMessage[]
+
+  @@index([userId], name: "idx_documents_user_id")
+  @@map("documents")
+}
+
+model Chunk {
+  id         String   @id
+  documentId String?  @map("document_id")
+  text       String
+  position   Int
+  metadata   Json? // JSONB
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // relation
+  document Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId], name: "idx_chunks_document_id")
+  @@map("chunks")
+}
+
+model Note {
+  id        String   @id
+  userId    String   @unique @map("user_id")
+  content   String
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "idx_notes_user")
+  @@map("notes")
+}
+
+model Prayer {
+  id         String   @id
+  userId     String?  @map("user_id")
+  title      String
+  text       String
+  tags       String[] @default([]) // TEXT[]
+  language   String?
+  category   String?
+  isFavorite Boolean  @default(false) @map("is_favorite")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "idx_prayers_user")
+  @@map("prayers")
+}
+
+model Quiz {
+  id         String   @id
+  userId     String?  @map("user_id")
+  title      String
+  documentId String?  @map("document_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user      User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document  Document?      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([userId], name: "idx_quizzes_user")
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id             String       @id
+  quizId         String?      @map("quiz_id")
+  type           QuestionType
+  prompt         String
+  data           Json?
+  sourceChunkIds String[]     @default([]) @map("source_chunk_ids")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  quiz             Quiz?             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionAttempts QuestionAttempt[]
+
+  @@index([quizId], name: "idx_questions_quiz")
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id          String    @id
+  quizId      String?   @map("quiz_id")
+  userId      String?   @map("user_id")
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  score       Int?
+
+  quiz             Quiz?             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user             User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionAttempts QuestionAttempt[]
+
+  @@index([quizId], name: "idx_attempts_quiz")
+  @@map("quiz_attempts")
+}
+
+model QuestionAttempt {
+  id         String   @id
+  attemptId  String?  @map("attempt_id")
+  questionId String?  @map("question_id")
+  answer     Json?
+  correct    Boolean?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  attempt  QuizAttempt?  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question QuizQuestion? @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("question_attempts")
+}
+
+model Creation {
+  id         String        @id
+  userId     String?       @map("user_id")
+  type       CreationType?
+  title      String?
+  prompt     String?
+  documentId String?       @map("document_id")
+  fileUrl    String?       @map("file_url")
+  status     String        @default("ready")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("creations")
+}
+
+model PomodoroSession {
+  id            String    @id
+  userId        String?   @map("user_id")
+  label         String?
+  durationMin   Int?      @map("duration_min")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  interruptions Int       @default(0)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("pomodoro_sessions")
+}
+
+model ChatMessage {
+  id             String   @id
+  userId         String?  @map("user_id")
+  documentId     String?  @map("document_id")
+  role           Role?
+  content        String?
+  sourceChunkIds String[] @default([]) @map("source_chunk_ids")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "idx_chat_user")
+  @@map("chat_messages")
+}
+
+model Job {
+  id          String   @id
+  type        String
+  payload     Json?
+  status      String   @default("pending")
+  attempts    Int      @default(0)
+  scheduledAt DateTime? @map("scheduled_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([status], name: "idx_jobs_status")
+  @@map("jobs")
+}

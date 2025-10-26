@@ -50,6 +50,7 @@ export async function completeJson(system: string, user: string, opts?: { model?
     }
   }
   // Fallback to OpenAI
+  if (!openai.apiKey) return {};
   const res = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -79,6 +80,7 @@ export async function completeText(system: string, user: string, opts?: { model?
       // fall through to OpenAI
     }
   }
+  if (!openai.apiKey) return "";
   const res = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [ { role: "system", content: system }, { role: "user", content: user } ],
@@ -92,6 +94,17 @@ export async function streamText(system: string, user: string): Promise<Readable
     // Gemini REST streaming is more involved; fallback to one-shot for now
     const text = await completeText(system, user);
     const encoder = new TextEncoder();
+    return new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", content: text })}\n\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
+        controller.close();
+      }
+    });
+  }
+  if (!openai.apiKey) {
+    const encoder = new TextEncoder();
+    const text = await completeText(system, user);
     return new ReadableStream({
       start(controller) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", content: text })}\n\n`));

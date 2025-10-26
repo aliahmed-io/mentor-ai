@@ -1,0 +1,18 @@
+# start application
+   createdb mentor_ai
+   ```
+
+2. **Initialize the schema:**
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+
+3. **Set your DATABASE_URL:**
+   ```env
+   DATABASE_URL="postgresql://username:password@localhost:5432/mentor_ai"
+   ```
+
+**Go ahead and select "Database Server" → "Next >"** - this is exactly what you need for your hackathon project! 🚀
+
+npm start dev

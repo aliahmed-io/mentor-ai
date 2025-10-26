@@ -13,7 +13,7 @@ export default function CreatePage() {
           <Link href="/dashboard">
             <Button>Go to Home to generate</Button>
           </Link>
-          <p className="text-xs text-muted-foreground">Upload your material and toggle "Create PPT Slides" or "Create Study Doc", then run.</p>
+          <p className="text-xs text-muted-foreground mt-1.5">Upload your material and toggle "Create PPT Slides" or "Create Study Doc", then run.</p>
         </CardContent>
       </Card>
     </div>

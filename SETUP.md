@@ -33,9 +33,11 @@ UPSTASH_VECTOR_REST_TOKEN=your_upstash_vector_token
 ## Setup Steps
 
 ### 1. Database Setup
-- Install PostgreSQL
+- Install PostgreSQL or use a hosted Postgres
 - Create a database named `mentor_ai`
-- Run the schema: `psql -d mentor_ai -f db/schema.sql`
+- Apply schema with Prisma:
+  - `npx prisma generate`
+  - `npx prisma db push`
 
 ### 2. Clerk Authentication
 - Sign up at https://clerk.com

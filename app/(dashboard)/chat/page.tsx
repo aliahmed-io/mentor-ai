@@ -153,8 +153,14 @@ export default function ChatPage() {
                       {m.role === "assistant" && i === messages.length - 1 && sources.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
                           {sources.map((s, idx) => (
-                            <a key={s.id} href={`/document/${''}#pos-${s.position}`} className="inline-flex items-center gap-1 text-xs bg-white rounded px-2 py-1 border hover:bg-neutral-50 dark:hover:bg-neutral-800" title={s.preview}>
-                              <BookOpen className="h-3 w-3 text-neutral-700" /> Source {idx+1}
+                            <a
+                              key={s.id}
+                              href={`/document/${''}#pos-${s.position}`}
+                              className="inline-flex items-center gap-1 text-xs rounded-md px-2 py-1 border border-neutral-300 text-neutral-800 bg-neutral-100 hover:bg-neutral-200 dark:border-neutral-700 dark:text-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-800"
+                              title={s.preview}
+                            >
+                              <BookOpen className="h-3 w-3 opacity-80" />
+                              <span className="font-medium">Source {idx + 1}</span>
                             </a>
                           ))}
                         </div>

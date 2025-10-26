@@ -26,9 +26,10 @@ export async function POST(req: Request) {
   const fileName = `creations/${userId}/${Date.now()}.docx`;
   const { url } = await uploadToStorage(buffer, fileName, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
-  const id = crypto.randomUUID();
-  await query(`INSERT INTO creations (id, user_id, type, title, prompt, file_url) VALUES ($1,$2,'docx',$3,$4,$5)`, [id, userId, title, JSON.stringify(sections), url]);
-  return NextResponse.json({ id, url });
+  const creationId = crypto.randomUUID();
+  await query(`INSERT INTO creations (id, user_id, type, title, prompt, status) VALUES ($1,$2,'docx',$3,$4,'processing')`, [creationId, userId, title, JSON.stringify(sections)]);
+  await query(`INSERT INTO jobs (id, type, payload) VALUES ($1,'create_docx',$2)`, [crypto.randomUUID(), JSON.stringify({ userId, creationId, url })]);
+  return NextResponse.json({ id: creationId, status: 'processing' });
 }
 
 

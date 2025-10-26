@@ -32,7 +32,6 @@ export default function CreationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold">All creations</h2>
-        <Link href="/dashboard" className="text-sm text-blue-700 hover:underline inline-flex items-center gap-1"><ArrowLeft className="h-4 w-4" /> Back</Link>
       </div>
       <div className="flex items-center gap-2">
         <div className="inline-flex items-center gap-1 text-sm">
@@ -40,7 +39,7 @@ export default function CreationsPage() {
           <button className={`px-2 py-1 rounded border ${filter==='ppt'?'bg-blue-50 border-blue-100 text-black':'hover:bg-gray-50 hover:text-black'}`} onClick={() => setFilter('ppt')}>PPT</button>
           <button className={`px-2 py-1 rounded border ${filter==='docx'?'bg-blue-50 border-blue-100 text-black':'hover:bg-gray-50 hover:text-black'}`} onClick={() => setFilter('docx')}>DOC</button>
         </div>
-        <input className="border rounded px-2 py-1 text-sm" placeholder="Search titles…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="border rounded px-2 py-1 text-sm " placeholder="Search titles…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <div className="grid gap-3">
         {filtered.map((c) => (

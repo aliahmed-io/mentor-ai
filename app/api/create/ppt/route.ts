@@ -17,13 +17,12 @@ export async function POST(req: Request) {
     (sec.bullets || []).forEach((b, i) => slide.addText(`• ${b}`, { x: 0.7, y: 1.2 + i * 0.5, fontSize: 16 }));
   });
 
-  const arrayBuffer = await pptx.write("arraybuffer");
-  const fileName = `creations/${userId}/${Date.now()}.pptx`;
-  const { url } = await uploadToStorage(Buffer.from(arrayBuffer), fileName, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
-
-  const id = crypto.randomUUID();
-  await query(`INSERT INTO creations (id, user_id, type, title, prompt, file_url) VALUES ($1,$2,'ppt',$3,$4,$5)`, [id, userId, title, JSON.stringify(sections), url]);
-  return NextResponse.json({ id, url });
+  const arrayBuffer = await pptx.write({ outputType: "arraybuffer" });
+  const buffer = Buffer.from(arrayBuffer as ArrayBuffer);
+  const creationId = crypto.randomUUID();
+  await query(`INSERT INTO creations (id, user_id, type, title, prompt, status) VALUES ($1,$2,'ppt',$3,$4,'processing')`, [creationId, userId, title, JSON.stringify(sections)]);
+  await query(`INSERT INTO jobs (id, type, payload) VALUES ($1,'create_ppt',$2)`, [crypto.randomUUID(), JSON.stringify({ userId, creationId, buffer: buffer.toString('base64') })]);
+  return NextResponse.json({ id: creationId, status: 'processing' });
 }
 
 

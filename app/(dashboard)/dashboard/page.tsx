@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Clock, CheckCircle, AlertCircle, FileText, Calendar, Search, FileUp, MessageCircle, GraduationCap, FilePlus2, Download } from "lucide-react";
+import { Clock, CheckCircle, AlertCircle, FileText, Calendar, Search, FileUp, MessageCircle, GraduationCap, FilePlus2, Download, Play } from "lucide-react";
 import Link from "next/link";
 import { uploadAndGenerate } from "./actions";
 import { UploadButton } from "@uploadthing/react";
@@ -79,6 +79,7 @@ export default function DashboardPage() {
   const [toast, setToast] = useState<{ id: string; title: string; url: string } | null>(null);
   const lastCountRef = useRef(0);
   const pollTimerRef = useRef<any>(null);
+  const uploadBtnRef = useRef<HTMLDivElement | null>(null);
 
   async function refreshCreations() {
     const c = await getCreations();
@@ -89,6 +90,28 @@ export default function DashboardPage() {
     }
     lastCountRef.current = c.length;
     setCreations(c);
+  }
+
+  async function processQueued(ids: string[]) {
+    if (ids.length === 0) return;
+    await fetch(`/api/documents/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    // poll statuses until all are indexed/failed (timeout ~60s)
+    const start = Date.now();
+    while (Date.now() - start < 60000) {
+      const res = await fetch(`/api/documents/status?ids=${encodeURIComponent(ids.join(','))}`);
+      const json = await res.json().catch(() => ({ statuses: {} }));
+      const statuses: Record<string, { status: string; last_error?: string | null }> = json.statuses || {};
+      const allDone = ids.every((id) => {
+        const st = statuses[id]?.status;
+        return st === 'indexed' || st === 'failed';
+      });
+      if (allDone) break;
+      await new Promise((r) => setTimeout(r, 1500));
+    }
   }
 
   useEffect(() => { (async () => { setLoading(true); const [d, c] = await Promise.all([getDocs(), getCreations()]); setDocs(d); setCreations(c); lastCountRef.current = c.length; setLoading(false); })(); }, []);
@@ -107,13 +130,13 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-semibold tracking-tight">Dashboard</h2>
-        <p className="text-sm text-muted-foreground">Upload a file and choose what you want Mentor to do.</p>
+        <p className="text-sm  text-gray-100">Upload a file and choose what you want Mentor to do.</p>
       </div>
 
       <Card className="border bg-white">
         <CardContent className="p-5 md:p-6">
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {[
                 { key: 'quiz', label: 'Create Quiz', icon: GraduationCap },
                 { key: 'ppt', label: 'Create PPT Slides', icon: FilePlus2 },
@@ -127,7 +150,7 @@ export default function DashboardPage() {
                     type="button"
                     variant={active ? "default" : "outline"}
                     onClick={() => setFeatures((s) => ({ ...s, [f.key]: !active }))}
-                    className={`justify-start gap-2 ${active ? '' : 'bg-white border border-gray-300 text-gray-800 hover:bg-gray-50'}`}
+                    className={`w-full justify-center sm:justify-start gap-2 ${active ? '' : 'bg-white border border-gray-300 text-gray-800 hover:bg-gray-50'}`}
                   >
                     <Icon className="h-4 w-4" /> {f.label}
                   </Button>
@@ -136,35 +159,81 @@ export default function DashboardPage() {
             </div>
             <p className="text-xs text-muted-foreground">Summary will always be generated.</p>
 
+            {/* Generation Button */}
+            <div className="flex justify-center pt-2">
+              <Button 
+                onClick={() => {
+                  // This will trigger the generation process
+                  const hasFeatures = Object.values(features).some(v => v);
+                  if (!hasFeatures) {
+                    alert('Please select at least one feature to generate');
+                    return;
+                  }
+                  // Read queued uploads and trigger generation for each
+                  let queued: string[] = [];
+                  try { queued = JSON.parse(localStorage.getItem('pending_doc_ids') || '[]'); } catch {}
+                  if (!queued.length) {
+                    // If nothing queued, open upload dialog
+                    try { (uploadBtnRef.current?.querySelector('button') as HTMLButtonElement | undefined)?.click?.(); } catch {}
+                    return;
+                  }
+                  (async () => {
+                    await processQueued(queued);
+                    // move queued docs from 'uploaded' -> 'processing/indexed' via API
+                    for (const docId of queued) {
+                      try {
+                        await fetch(`/api/document/${docId}/generate`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ regenerate: ["summary", "questions"], features }),
+                        });
+                      } catch {}
+                    }
+                    try { localStorage.removeItem('pending_doc_ids'); } catch {}
+                    await refreshCreations();
+                  })();
+                }}
+                className="bg-black hover:bg-neutral-800 text-white px-6 py-3 h-auto text-sm sm:text-base font-medium"
+                disabled={!Object.values(features).some(v => v)}
+              >
+                <Play className="h-5 w-5 mr-2 " />
+                Start Generation 
+              </Button>
+            </div>
+
             <div className="flex flex-col gap-2">
+              <div ref={uploadBtnRef}>
               <UploadButton<OurFileRouter, "documentUploader">
                 endpoint="documentUploader"
                 onUploadBegin={() => {
                   onSubmitClicked();
                 }}
                 onClientUploadComplete={async (res) => {
-                  const docId = (res?.[0] as any)?.serverResponse?.documentId;
-                  if (docId) {
-                    try { localStorage.setItem('chat_doc_id', docId); } catch {}
+                  // Collect all uploaded document IDs; user will click Start to generate
+                  const ids = (res || []).map((r: any) => r?.serverData?.documentId).filter(Boolean) as string[];
+                  if (ids.length > 0) {
                     try {
-                      await fetch(`/api/document/${docId}/generate`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ regenerate: ["summary", "questions"], features }),
-                      });
+                      const prev = JSON.parse(localStorage.getItem('pending_doc_ids') || '[]');
+                      const merged = Array.from(new Set([...(Array.isArray(prev) ? prev : []), ...ids]));
+                      localStorage.setItem('pending_doc_ids', JSON.stringify(merged));
                     } catch {}
-                    await refreshCreations();
                   }
                 }}
                 onUploadError={() => {
                   setToast({ id: "upload_error", title: "Upload failed", url: "" });
                 }}
                 appearance={{
-                  button: "ut-ready:bg-neutral-900 ut-ready:text-white ut-uploading:bg-neutral-700 ut-uploading:text-white",
                   container: "justify-start",
+                  button: [
+                    "rounded-md border border-neutral-800",
+                    "bg-neutral-900 text-white hover:bg-neutral-800",
+                    "h-10 px-4 py-2",
+                    "shadow-sm",
+                  ].join(" "),
                   allowedContent: "text-xs text-muted-foreground",
                 }}
               />
+              </div>
               <p className="text-xs text-muted-foreground">PDF, DOCX, PPTX, TXT, and images are supported (max 8MB).</p>
             </div>
           </div>
@@ -281,7 +350,7 @@ export default function DashboardPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-4 right-4 z-50">
+        <div className="fixed bottom-20 right-4 z-50">
           <div className="rounded-md border bg-white dark:bg-neutral-900 shadow-lg p-3 min-w-[240px]">
             <div className="text-sm font-medium">Created: {toast.title}</div>
             <a href={toast.url} target="_blank" className="text-xs text-neutral-700 dark:text-neutral-300 hover:underline">Download</a>

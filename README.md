@@ -52,11 +52,12 @@ UPSTASH_VECTOR_REST_TOKEN=your_upstash_vector_token
 
 ### 2. Database Setup
 ```bash
-# Create PostgreSQL database
+# Create PostgreSQL database (or use a hosted Postgres)
 createdb mentor_ai
 
-# Initialize database schema
-npm run init-db
+# Apply schema with Prisma
+npx prisma generate
+npx prisma db push
 ```
 
 ### 3. Install and Run
@@ -95,7 +96,6 @@ npm run dev
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 - `npm run test` - Run tests
-- `npm run init-db` - Initialize database schema
 
 ## Deploy
 Use Vercel. Configure all environment variables in the Vercel dashboard before first deploy.

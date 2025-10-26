@@ -2,7 +2,7 @@
 
 ## ✅ Code Issues Fixed
 - [x] Chat API now handles missing documentId parameter
-- [x] Database initialization script created
+- [x] Database schema managed via Prisma
 - [x] Environment variable template provided
 - [x] Comprehensive documentation created
 - [x] No linter errors found
@@ -42,7 +42,7 @@ UPSTASH_VECTOR_REST_TOKEN=your_actual_upstash_token
 1. **PostgreSQL Database** (Required first)
    - Install PostgreSQL locally or use a cloud service
    - Create database: `createdb mentor_ai`
-   - Run: `npm run init-db`
+   - Run: `npx prisma generate && npx prisma db push`
 
 2. **Clerk Authentication** (Required for auth)
    - Sign up at https://clerk.com
@@ -71,8 +71,9 @@ UPSTASH_VECTOR_REST_TOKEN=your_actual_upstash_token
 # Install dependencies
 npm install
 
-# Initialize database
-npm run init-db
+# Initialize database schema
+npx prisma generate
+npx prisma db push
 
 # Start development server
 npm run dev

@@ -183,7 +183,7 @@ export default function PomodoroPage() {
         <CardContent className="p-4 grid gap-3 md:grid-cols-5">
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">Focus (minutes)</div>
-            <Input type="number" min={1} max={120} value={focusMin} onChange={(e) => setFocusMin(Math.max(1, Math.min(120, Number(e.target.value) || 0)))} disabled={running} />
+            <Input type="number" min={1} max={120} value={focusMin} onChange={(e) => setFocusMin(Math.max(1, Math.min(120, Number(e.target.value) || 0)))} disabled={running}  />
           </div>
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">Break (minutes)</div>

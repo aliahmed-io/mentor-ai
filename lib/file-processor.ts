@@ -1,4 +1,3 @@
-import * as pdf from "pdf-parse";
 import mammoth from "mammoth";
 // OCR is loaded dynamically to avoid bundling/typing issues when not installed
 
@@ -36,6 +35,7 @@ export async function processFile(buffer: Buffer, fileType: string, filename: st
 }
 
 async function processPdf(buffer: Buffer): Promise<ProcessedFile> {
+  const pdf = await import("pdf-parse");
   const data = await (pdf as any)(buffer);
   const cleaned = cleanText(data.text || "");
   const sections = extractHeadingsFromText(cleaned);
@@ -61,6 +61,10 @@ async function processDocx(buffer: Buffer): Promise<ProcessedFile> {
 }
 
 async function processImage(buffer: Buffer, filename: string): Promise<ProcessedFile> {
+  // Gate OCR by env for performance; default OFF
+  if (String(process.env.OCR_IMAGES || '').toLowerCase() !== 'true') {
+    return { text: `[Image file: ${filename}]\nOCR disabled.`, fileType: "image" };
+  }
   try {
     const Tesseract: any = await import("tesseract.js");
     const { data } = await Tesseract.recognize(buffer, 'eng');

@@ -15,11 +15,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <ClerkProvider
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
-      afterSignInUrl="/dashboard"
-      afterSignUpUrl="/dashboard"
+      fallbackRedirectUrl="/dashboard"
     >
-      <html lang="en" suppressHydrationWarning>
-        <body className="antialiased min-h-screen text-foreground bg-[radial-gradient(1200px_600px_at_0%_0%,#fff7ed,transparent_60%),radial-gradient(1000px_500px_at_100%_0%,#eef2ff,transparent_60%),radial-gradient(1000px_500px_at_50%_100%,#ecfeff,transparent_60%)]">
+      <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
+        <body suppressHydrationWarning className="antialiased min-h-screen text-foreground bg-[radial-gradient(1200px_600px_at_0%_0%,#fff7ed,transparent_60%),radial-gradient(1000px_500px_at_100%_0%,#eef2ff,transparent_60%),radial-gradient(1000px_500px_at_50%_100%,#ecfeff,transparent_60%)]">
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             {children}
             <Toaster richColors position="top-right" />

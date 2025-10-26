@@ -84,7 +84,7 @@ export default function QuizPage() {
             <Link href="/dashboard">
               <Button>Go to Home to generate</Button>
             </Link>
-            <p className="text-xs text-muted-foreground">Upload your material and toggle "Create Quiz", then run.</p>
+            <p className="text-xs text-muted-foreground mt-1.5 ">Upload your material and toggle "Create Quiz", then run.</p>
           </CardContent>
         </Card>
       ) : quizzes.length === 0 && docsCount > 0 ? (
